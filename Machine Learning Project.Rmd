@@ -1,0 +1,181 @@
+---
+title: "Practical Machine Learning Project"
+author: "Desiree Leentjie Wilson"
+date: "13/05/2021"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+**Introduction**
+
+Given the data sets from accelerometers on the belt, forearm, arm, and dumbell of 6 research study participants, we need to create a model and use predictions to show how practical machine learning can be used. We have two datasets, which are the Trainig data and Testing Data.We are required to predict for the tested labels. 
+
+
+**Backgraound**
+
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: (http://groupware.les.inf.puc-rio.br/har) (see the section on the Weight Lifting Exercise Dataset).
+
+The training data for this project are available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+The data for this project come from this source: http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har. If you use the document you create for this class for any purpose please cite them as they have been very generous in allowing their data to be used for this kind of assignment.
+
+**Loading the required libraries for the project**
+
+```{r}
+
+
+library(caret)
+library(ggplot2)
+library(lattice)
+library(kernlab)
+library(rattle)
+library(corrplot)
+
+
+```
+
+**Reading the data**
+
+```{r}
+
+urlTraining <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+
+urlTesting <-  "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+
+
+```
+
+```{r}
+
+trainingData <- read.csv(url(urlTraining))
+
+testingData <- read.csv(url(urlTesting))
+```
+
+**Creating a partition for training data**
+
+```{r}
+
+inTrain  <- createDataPartition(trainingData$classe, p=0.7, list=FALSE)
+trainSet <- trainingData[inTrain, ]
+testSet  <- trainingData[-inTrain, ]
+
+```
+
+Showing dimensions and head of train Set and test set to get the feel of the data we are working with.
+
+```{r}
+
+dim(trainSet)
+
+head(trainSet, 3)
+```
+
+
+```{r}
+
+
+dim(testSet)
+
+head(testSet, 1)
+
+```
+
+We can see that our data has a lot of NA;s so we have to work with clean data. 
+
+**Cleaning the Data**
+```{r}
+
+remNA <- sapply(trainSet, function(x) mean(is.na(x))) > 0.95
+trainSet <- trainSet[, remNA==F]
+testSet <- testSet[, remNA==F]
+
+```
+
+Remove variables with nearly zero variance
+
+```{r}
+
+nzv <- nearZeroVar(trainSet)
+trainSet <- trainSet[, -nzv]
+testSet <- testSet[, -nzv]
+
+```
+
+The first five variables do not make sense so we remove them
+
+```{r}
+
+trainSet <- trainSet[, -(1:5)]
+testSet<- testSet[, -(1:5)]
+
+dim(trainSet)
+head(trainSet,1)
+
+```
+
+We can see that our data set is clean from just showing the first line.
+
+**Testing Models**
+
+we are going to test a few models. 
+
+*Decision Tree Model*
+
+Fit Model
+
+```{r}
+control <- trainControl(method="cv", number=3, verboseIter=FALSE)
+
+modelTree <- train(classe~., data=trainSet, method="rpart", trControl = control, tuneLength = 5)
+fancyRpartPlot(modelTree$finalModel)
+
+```
+Prediction
+
+```{r}
+
+
+predTree <-  predict(modelTree, testSet)
+confMatTree <- confusionMatrix(predTree, factor(testSet$classe))
+confMatTree
+
+```
+The prediction of the decision tree is of levels is shown above and has n=20 and 5 levels.
+```{r}
+plot(confMatTree$table, col = confMatTree$byClass, 
+     main = paste("Decision Tree - Accuracy =",
+   
+                 round(confMatTree$overall['Accuracy'], 4)))
+          
+                 
+```
+
+
+The chosen prediction model is the decision tree, the accuracy is 56% just above average however there are other better models that can be chosen, the random Forest Tree seems to be a better model than the Decision tree as it has the most accuracy. 
+
+
+
+Appendix
+
+```{r}
+
+corPlot <- cor(trainSet[, -length(names(trainSet))])
+corrplot(corPlot, method="color")
+```
+
+Decision model Plot
+
+```{r}
+
+plot(modelTree)
+
+```
